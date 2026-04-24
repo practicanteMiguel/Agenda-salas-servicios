@@ -123,8 +123,11 @@ export default function Page() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
+          <img src="/assets/logo-full.png" alt="Logo" className="h-40 mx-auto mb-4 object-contain" />
+          
+          <p className="text-gray-500 text-sm mb-4 font-medium">Cargando sistema de reservas...</p>
+
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500 text-sm font-medium">Conectando con Firebase...</p>
         </div>
       </div>
     );
@@ -156,23 +159,9 @@ export default function Page() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-sm">
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
+            <img src="/assets/logo-icon.png" alt="Logo" className="w-12 h-12 object-contain" />
             <div>
-              <h1 className="text-sm font-bold text-gray-900 leading-tight">Agenda de Salas</h1>
+              <h1 className="text-sm font-bold text-gray-900 leading-tight">Agenda de Salas Servicios Asociados</h1>
               <p className="text-xs text-gray-400 hidden sm:block">Gestion de salas de juntas</p>
             </div>
           </div>
