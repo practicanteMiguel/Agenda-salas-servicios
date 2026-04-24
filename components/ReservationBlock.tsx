@@ -14,20 +14,10 @@ interface Props {
   reserva: Reserva;
   top: number;
   height: number;
-  onLiberar: (id: string) => void;
-  onReactivar: (id: string) => void;
-  onEliminar: (id: string) => void;
+  onDetails: (reserva: Reserva) => void;
 }
 
-export function ReservationBlock({
-  reserva,
-  top,
-  height,
-  onLiberar,
-  onReactivar,
-  onEliminar,
-}: Props) {
-  const [showMenu, setShowMenu] = useState(false);
+export function ReservationBlock({ reserva, top, height, onDetails }: Props) {
   const [isDragging, setIsDragging] = useState(false);
 
   const isReservado = reserva.estado === "reservado";
@@ -45,7 +35,6 @@ export function ReservationBlock({
       JSON.stringify({ reservaId: reserva.id, offsetY, durationMinutes })
     );
     e.dataTransfer.effectAllowed = "move";
-    // Delay so the drag ghost captures the full-opacity block, then fade original
     setTimeout(() => setIsDragging(true), 0);
   };
 
@@ -66,88 +55,51 @@ export function ReservationBlock({
       style={{ top: top + 1, height: Math.max(height - 2, 24) }}
       onClick={(e) => {
         e.stopPropagation();
-        setShowMenu((v) => !v);
+        onDetails(reserva);
       }}
     >
-      {!showMenu ? (
-        <div className="px-2 py-1.5 h-full flex flex-col justify-between overflow-hidden">
-          {compact ? (
-            <span
+      <div className="px-2 py-1.5 h-full flex flex-col justify-between overflow-hidden">
+        {compact ? (
+          <span
+            className={clsx(
+              "text-xs font-semibold truncate leading-tight",
+              !isReservado && "line-through opacity-60"
+            )}
+          >
+            {reserva.solicitante} · {reserva.horaInicio}–{reserva.horaFin}
+          </span>
+        ) : (
+          <>
+            <div>
+              <p
+                className={clsx(
+                  "text-xs font-bold truncate leading-tight",
+                  !isReservado && "line-through opacity-60"
+                )}
+              >
+                {reserva.solicitante}
+              </p>
+              <p
+                className={clsx(
+                  "text-xs truncate",
+                  isReservado ? "text-white/80" : "opacity-50"
+                )}
+              >
+                {reserva.area}
+              </p>
+            </div>
+            <p
               className={clsx(
-                "text-xs font-semibold truncate leading-tight",
-                !isReservado && "line-through opacity-60"
+                "text-xs",
+                isReservado ? "text-white/70" : "opacity-40"
               )}
             >
-              {reserva.solicitante} · {reserva.horaInicio}–{reserva.horaFin}
-            </span>
-          ) : (
-            <>
-              <div>
-                <p
-                  className={clsx(
-                    "text-xs font-bold truncate leading-tight",
-                    !isReservado && "line-through opacity-60"
-                  )}
-                >
-                  {reserva.solicitante}
-                </p>
-                <p className={clsx("text-xs truncate", isReservado ? "text-white/80" : "opacity-50")}>
-                  {reserva.area}
-                </p>
-              </div>
-              <p className={clsx("text-xs", isReservado ? "text-white/70" : "opacity-40")}>
-                {reserva.horaInicio} – {reserva.horaFin}
-                {!isReservado && " · liberada"}
-              </p>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="absolute inset-0 bg-black/80 rounded-lg flex flex-col items-center justify-center gap-1.5 p-2">
-          {isReservado ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onLiberar(reserva.id);
-                setShowMenu(false);
-              }}
-              className="w-full bg-amber-400 hover:bg-amber-500 text-black text-xs font-bold py-1.5 rounded-lg transition-colors"
-            >
-              Liberar sala
-            </button>
-          ) : (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onReactivar(reserva.id);
-                setShowMenu(false);
-              }}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded-lg transition-colors"
-            >
-              Reactivar
-            </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEliminar(reserva.id);
-              setShowMenu(false);
-            }}
-            className="w-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1.5 rounded-lg transition-colors"
-          >
-            Eliminar
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMenu(false);
-            }}
-            className="text-white/50 text-xs hover:text-white transition-colors mt-0.5"
-          >
-            Cerrar
-          </button>
-        </div>
-      )}
+              {reserva.horaInicio} – {reserva.horaFin}
+              {!isReservado && " · liberada"}
+            </p>
+          </>
+        )}
+      </div>
     </div>
   );
 }

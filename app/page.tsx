@@ -190,7 +190,7 @@ export default function Page() {
       {/* Main */}
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
         {/* Stats bar — status based on current time */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {SALAS.map((sala) => {
             const reservaActual = getReservaActual(sala);
             const ocupada = reservaActual !== null;

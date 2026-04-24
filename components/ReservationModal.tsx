@@ -59,12 +59,16 @@ export function ReservationModal({
   const errorClass = "text-red-500 text-xs mt-1";
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+      <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl animate-fade-in overflow-hidden flex flex-col max-h-[92dvh]">
+        {/* Handle bar (mobile) */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-200" />
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
@@ -80,7 +84,7 @@ export function ReservationModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-5 flex flex-col gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-5 flex flex-col gap-4 overflow-y-auto">
           {/* Sala */}
           <div>
             <label className={labelClass}>Sala</label>
