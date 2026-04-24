@@ -166,7 +166,7 @@ export function ReservationDetailModal({
                 }}
                 onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
                 className={clsx(
-                  "w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all",
+                  "w-full border rounded-xl px-3 py-2.5 text-[16px] bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all",
                   pinError
                     ? "border-red-400 focus:ring-red-400"
                     : "border-gray-200 focus:ring-blue-500"
