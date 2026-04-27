@@ -8,26 +8,32 @@ import { Reserva } from "@/types";
 import { ReservationBlock } from "./ReservationBlock";
 import { ReservationDetailModal } from "./ReservationDetailModal";
 
-const SALAS = ["Sala 1", "Sala 2", "Sala 3"] as const;
+const SALAS = ["Sala Recepcion", "Sala Juntas", "Sala Operaciones"] as const;
 
 const SALA_STYLES = {
-  "Sala 1": {
+  "Sala Recepcion": {
     header: "bg-blue-600 text-white",
     body: "bg-blue-50/30",
     border: "border-blue-100",
     dragOver: "border-blue-400 bg-blue-50/70 border-2 border-dashed",
+    preview: "border-blue-500 bg-blue-50/80",
+    previewText: "text-blue-700",
   },
-  "Sala 2": {
+  "Sala Juntas": {
     header: "bg-violet-600 text-white",
     body: "bg-violet-50/30",
     border: "border-violet-100",
     dragOver: "border-violet-400 bg-violet-50/70 border-2 border-dashed",
+    preview: "border-violet-500 bg-violet-50/80",
+    previewText: "text-violet-700",
   },
-  "Sala 3": {
+  "Sala Operaciones": {
     header: "bg-emerald-600 text-white",
     body: "bg-emerald-50/30",
     border: "border-emerald-100",
     dragOver: "border-emerald-400 bg-emerald-50/70 border-2 border-dashed",
+    preview: "border-emerald-500 bg-emerald-50/80",
+    previewText: "text-emerald-700",
   },
 } as const;
 
@@ -60,6 +66,7 @@ interface Props {
     horaInicio: string,
     horaFin: string
   ) => void;
+  onDayChange?: (date: Date) => void;
 }
 
 export function CalendarView({
@@ -69,6 +76,7 @@ export function CalendarView({
   onReactivar,
   onEliminar,
   onMoverReserva,
+  onDayChange,
 }: Props) {
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
@@ -76,6 +84,13 @@ export function CalendarView({
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [dragOverSala, setDragOverSala] = useState<string | null>(null);
   const [detailReserva, setDetailReserva] = useState<Reserva | null>(null);
+  const [dragMeta, setDragMeta] = useState<{ offsetY: number; durationMinutes: number } | null>(null);
+  const [dragPreviewY, setDragPreviewY] = useState<number | null>(null);
+
+  const selectDay = (day: Date) => {
+    setSelectedDay(day);
+    onDayChange?.(day);
+  };
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -95,22 +110,53 @@ export function CalendarView({
     return map;
   }, [reservas, selectedDateStr]);
 
+  // Compute drag preview times from current Y position in the drop target
+  let dragPreview: { startY: number; endY: number; label: string } | null = null;
+  if (dragMeta && dragPreviewY !== null) {
+    const minutesFromStart = Math.round(((dragPreviewY / HOUR_HEIGHT) * 60) / 15) * 15;
+    let startMins = GRID_START * 60 + minutesFromStart;
+    let endMins = startMins + dragMeta.durationMinutes;
+    if (endMins > GRID_END * 60) {
+      endMins = GRID_END * 60;
+      startMins = endMins - dragMeta.durationMinutes;
+    }
+    startMins = Math.max(GRID_START * 60, startMins);
+    const startY = timeToY(minsToTime(startMins));
+    const endY = timeToY(minsToTime(endMins));
+    dragPreview = { startY, endY, label: `${minsToTime(startMins)} – ${minsToTime(endMins)}` };
+  }
+
+  const isDraggingAny = dragOverSala !== null;
+
+  const clearDragState = () => {
+    setDragMeta(null);
+    setDragPreviewY(null);
+    setDragOverSala(null);
+  };
+
   const handleDragOver = (e: React.DragEvent, sala: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     if (dragOverSala !== sala) setDragOverSala(sala);
+
+    if (dragMeta) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const rawY = e.clientY - rect.top - dragMeta.offsetY;
+      setDragPreviewY(Math.max(0, rawY));
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
       setDragOverSala(null);
+      setDragPreviewY(null);
     }
   };
 
   const handleDrop = (e: React.DragEvent, sala: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragOverSala(null);
+    clearDragState();
 
     const rawData = e.dataTransfer.getData("application/json");
     if (!rawData) return;
@@ -161,7 +207,7 @@ export function CalendarView({
             return (
               <button
                 key={day.toISOString()}
-                onClick={() => setSelectedDay(day)}
+                onClick={() => selectDay(day)}
                 className={clsx(
                   "flex flex-col items-center py-2 px-0.5 rounded-xl transition-all duration-150",
                   isSelected
@@ -203,8 +249,9 @@ export function CalendarView({
         {!isSameDay(selectedDay, new Date()) && (
           <button
             onClick={() => {
-              setSelectedDay(new Date());
-              setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+              const today = new Date();
+              selectDay(today);
+              setWeekStart(startOfWeek(today, { weekStartsOn: 1 }));
             }}
             className="text-xs text-blue-600 hover:text-blue-700 font-semibold px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
           >
@@ -236,7 +283,7 @@ export function CalendarView({
           ))}
         </div>
 
-        {/* Room columns — minWidth forces horizontal scroll on narrow screens */}
+        {/* Room columns */}
         <div
           className="grid grid-cols-3 gap-2 flex-1"
           style={{ minWidth: "330px" }}
@@ -284,21 +331,67 @@ export function CalendarView({
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, sala)}
                 >
+                  {/* Hour lines — darker while dragging */}
                   {HOURS.map((_, i) => (
                     <div
                       key={i}
-                      className="absolute left-0 right-0 border-t border-gray-100"
+                      className={clsx(
+                        "absolute left-0 right-0 border-t transition-colors",
+                        isDraggingAny ? "border-gray-300" : "border-gray-100"
+                      )}
                       style={{ top: i * HOUR_HEIGHT }}
                     />
                   ))}
+                  {/* Half-hour dashes */}
                   {HOURS.map((_, i) => (
                     <div
                       key={`hh-${i}`}
-                      className="absolute left-3 right-3 border-t border-dashed border-gray-100"
+                      className={clsx(
+                        "absolute left-3 right-3 border-t border-dashed transition-colors",
+                        isDraggingAny ? "border-gray-200" : "border-gray-100"
+                      )}
                       style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
                     />
                   ))}
 
+                  {/* Drag preview: dashed outline + floating time badge above */}
+                  {isDragTarget && dragPreview && (
+                    <>
+                      <div
+                        className={clsx(
+                          "absolute left-1 right-1 rounded-lg border-2 border-dashed z-20 pointer-events-none",
+                          styles.preview
+                        )}
+                        style={{
+                          top: dragPreview.startY,
+                          height: Math.max(dragPreview.endY - dragPreview.startY, 28),
+                        }}
+                      />
+                      <div
+                        className={clsx(
+                          "absolute left-1 right-1 z-30 pointer-events-none flex justify-center"
+                        )}
+                        style={{ top: Math.max(0, dragPreview.startY - 22) }}
+                      >
+                        <span
+                          className={clsx(
+                            "text-xs font-bold px-2 py-0.5 rounded-full shadow-md",
+                            styles.previewText,
+                            "bg-white border",
+                            dragOverSala === "Sala Recepcion"
+                              ? "border-blue-300"
+                              : dragOverSala === "Sala Juntas"
+                              ? "border-violet-300"
+                              : "border-emerald-300"
+                          )}
+                        >
+                          {dragPreview.label}
+                        </span>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Reservation blocks */}
                   {salaReservas.map((reserva) => {
                     const top = timeToY(reserva.horaInicio);
                     const height = timeToY(reserva.horaFin) - top;
@@ -309,6 +402,10 @@ export function CalendarView({
                         top={top}
                         height={Math.max(height, 28)}
                         onDetails={setDetailReserva}
+                        onDragStarted={(offsetY, durationMinutes) =>
+                          setDragMeta({ offsetY, durationMinutes })
+                        }
+                        onDragEnded={clearDragState}
                       />
                     );
                   })}

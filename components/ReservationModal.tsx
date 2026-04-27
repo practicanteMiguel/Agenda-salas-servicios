@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import clsx from "clsx";
 import { FormReserva } from "@/types";
 
-const SALAS = ["Sala 1", "Sala 2", "Sala 3"];
+const SALAS = ["Sala Recepcion", "Sala Juntas", "Sala Operaciones"];
 
 interface Props {
   open: boolean;

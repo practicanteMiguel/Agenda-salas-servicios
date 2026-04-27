@@ -30,6 +30,16 @@ export function ReservationDetailModal({
 
   const isReservado = reserva.estado === "reservado";
 
+  // "Liberar sala" only available while the reservation is currently happening
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+  const isCurrentlyActive =
+    isReservado &&
+    reserva.fecha === todayStr &&
+    reserva.horaInicio <= currentTime &&
+    reserva.horaFin > currentTime;
+
   const handleConfirm = () => {
     if (pin !== ADMIN_PIN) {
       setPinError(true);
@@ -53,9 +63,9 @@ export function ReservationDetailModal({
   };
 
   const SALA_COLORS: Record<string, string> = {
-    "Sala 1": "bg-blue-600",
-    "Sala 2": "bg-violet-600",
-    "Sala 3": "bg-emerald-600",
+    "Sala Recepcion": "bg-blue-600",
+    "Sala Juntas": "bg-violet-600",
+    "Sala Operaciones": "bg-emerald-600",
   };
   const salaColor = SALA_COLORS[reserva.sala] ?? "bg-gray-600";
 
@@ -198,12 +208,14 @@ export function ReservationDetailModal({
           ) : (
             <div className="flex flex-col gap-2">
               {isReservado ? (
-                <button
-                  onClick={() => setPending("liberar")}
-                  className="w-full bg-amber-400 hover:bg-amber-500 text-black font-semibold py-3 rounded-xl text-sm transition-colors"
-                >
-                  Liberar sala
-                </button>
+                isCurrentlyActive ? (
+                  <button
+                    onClick={() => setPending("liberar")}
+                    className="w-full bg-amber-400 hover:bg-amber-500 text-black font-semibold py-3 rounded-xl text-sm transition-colors"
+                  >
+                    Liberar sala
+                  </button>
+                ) : null
               ) : (
                 <button
                   onClick={handleReactivar}
@@ -222,8 +234,7 @@ export function ReservationDetailModal({
           )}
         </div>
 
-        {/* Safe area spacing for mobile */}
-        <div className="h-safe-bottom sm:h-0 pb-4 sm:pb-0" />
+        <div className="pb-4 sm:pb-0" />
       </div>
     </div>
   );

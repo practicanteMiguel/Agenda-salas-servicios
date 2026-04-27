@@ -7,7 +7,7 @@ import { useReservas } from "@/hooks/useReservas";
 import { useToast } from "@/components/ToastContext";
 import { FormReserva, Reserva } from "@/types";
 
-const SALAS = ["Sala 1", "Sala 2", "Sala 3"] as const;
+const SALAS = ["Sala Recepcion", "Sala Juntas", "Sala Operaciones"] as const;
 
 function roundUpTo15(date: Date): { horaInicio: string; horaFin: string } {
   const h = date.getHours();
@@ -32,6 +32,7 @@ export default function Page() {
     return () => clearInterval(timer);
   }, []);
 
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSala, setModalSala] = useState("Sala 1");
   const [modalFecha, setModalFecha] = useState(() => new Date().toISOString().slice(0, 10));
@@ -151,7 +152,10 @@ export default function Page() {
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const realToday = new Date().toISOString().slice(0, 10);
+  const selectedDateStr = selectedDate.toISOString().slice(0, 10);
+  const isViewingToday = selectedDateStr === realToday;
+  const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -166,7 +170,7 @@ export default function Page() {
             </div>
           </div>
           <button
-            onClick={() => openModal("Sala 1", today)}
+            onClick={() => openModal("Sala Recepcion", selectedDateStr)}
             className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm"
           >
             <span className="text-base leading-none">+</span>
@@ -178,28 +182,25 @@ export default function Page() {
 
       {/* Main */}
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
-        {/* Stats bar — status based on current time */}
+        {/* Stats bar */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {SALAS.map((sala) => {
-            const reservaActual = getReservaActual(sala);
+            // Real-time occupied status only applies to today
+            const reservaActual = isViewingToday ? getReservaActual(sala) : null;
             const ocupada = reservaActual !== null;
-            const totalHoy = reservas.filter(
-              (r) => r.sala === sala && r.fecha === today && r.estado === "reservado"
+            const totalDia = reservas.filter(
+              (r) => r.sala === sala && r.fecha === selectedDateStr && r.estado === "reservado"
             ).length;
             const proxima = !ocupada
               ? reservas
                   .filter(
                     (r) =>
                       r.sala === sala &&
-                      r.fecha === today &&
+                      r.fecha === selectedDateStr &&
                       r.estado === "reservado" &&
-                      r.horaInicio >
-                        `${now.getHours().toString().padStart(2, "0")}:${now
-                          .getMinutes()
-                          .toString()
-                          .padStart(2, "0")}`
+                      r.horaInicio > (isViewingToday ? currentTime : "")
                   )
-                  .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))[0]
+                  .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))[0] ?? null
               : null;
 
             return (
@@ -209,13 +210,15 @@ export default function Page() {
               >
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs font-semibold text-gray-500">{sala}</p>
-                  <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                      ocupada ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
-                    }`}
-                  >
-                    {ocupada ? "Ocupada" : "Libre"}
-                  </span>
+                  {isViewingToday && (
+                    <span
+                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        ocupada ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {ocupada ? "Ocupada" : "Libre"}
+                    </span>
+                  )}
                 </div>
 
                 {ocupada ? (
@@ -229,19 +232,21 @@ export default function Page() {
                   </>
                 ) : (
                   <>
-                    <p className="text-xl font-bold text-gray-900">{totalHoy}</p>
+                    <p className="text-xl font-bold text-gray-900">{totalDia}</p>
                     {proxima ? (
                       <p className="text-xs text-gray-400">
                         proxima: {proxima.horaInicio} ({proxima.solicitante})
                       </p>
                     ) : (
-                      <p className="text-xs text-gray-400">sin reservas pendientes hoy</p>
+                      <p className="text-xs text-gray-400">
+                        {totalDia === 0 ? "sin reservas este dia" : "sin mas reservas"}
+                      </p>
                     )}
                   </>
                 )}
 
-                {/* Quick "Ocupar ahora" — only when the room is currently free */}
-                {!ocupada && (
+                {/* "Ocupar ahora" solo cuando se ve hoy y la sala esta libre */}
+                {isViewingToday && !ocupada && (
                   <button
                     onClick={() => ocuparAhora(sala)}
                     className="mt-2 w-full text-xs text-blue-600 hover:text-blue-700 font-semibold py-1 rounded-lg hover:bg-blue-50 transition-colors border border-blue-100"
@@ -263,6 +268,7 @@ export default function Page() {
             onReactivar={handleReactivar}
             onEliminar={handleEliminar}
             onMoverReserva={handleMover}
+            onDayChange={setSelectedDate}
           />
         </div>
       </main>

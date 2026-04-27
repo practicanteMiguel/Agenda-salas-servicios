@@ -5,9 +5,9 @@ import clsx from "clsx";
 import { Reserva } from "@/types";
 
 const BLOCK_COLORS: Record<string, string> = {
-  "Sala 1": "bg-blue-500 border-blue-700 hover:bg-blue-600",
-  "Sala 2": "bg-violet-500 border-violet-700 hover:bg-violet-600",
-  "Sala 3": "bg-emerald-500 border-emerald-700 hover:bg-emerald-600",
+  "Sala Recepcion": "bg-blue-500 border-blue-700 hover:bg-blue-600",
+  "Sala Juntas": "bg-violet-500 border-violet-700 hover:bg-violet-600",
+  "Sala Operaciones": "bg-emerald-500 border-emerald-700 hover:bg-emerald-600",
 };
 
 interface Props {
@@ -15,9 +15,18 @@ interface Props {
   top: number;
   height: number;
   onDetails: (reserva: Reserva) => void;
+  onDragStarted: (offsetY: number, durationMinutes: number) => void;
+  onDragEnded: () => void;
 }
 
-export function ReservationBlock({ reserva, top, height, onDetails }: Props) {
+export function ReservationBlock({
+  reserva,
+  top,
+  height,
+  onDetails,
+  onDragStarted,
+  onDragEnded,
+}: Props) {
   const [isDragging, setIsDragging] = useState(false);
 
   const isReservado = reserva.estado === "reservado";
@@ -35,10 +44,14 @@ export function ReservationBlock({ reserva, top, height, onDetails }: Props) {
       JSON.stringify({ reservaId: reserva.id, offsetY, durationMinutes })
     );
     e.dataTransfer.effectAllowed = "move";
+    onDragStarted(offsetY, durationMinutes);
     setTimeout(() => setIsDragging(true), 0);
   };
 
-  const handleDragEnd = () => setIsDragging(false);
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    onDragEnded();
+  };
 
   return (
     <div
