@@ -8,6 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Agenda de Salas",
   description: "Sistema de reservas de salas de juntas",
+  icons: { icon: "/assets/logo-icon.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
