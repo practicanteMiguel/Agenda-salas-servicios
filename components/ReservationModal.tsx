@@ -33,6 +33,7 @@ export function ReservationModal({
     handleSubmit,
     reset,
     watch,
+    getValues,
     formState: { errors },
   } = useForm<FormReserva>();
 
@@ -102,6 +103,7 @@ export function ReservationModal({
             <label className={labelClass}>Fecha</label>
             <input
               type="date"
+              min={new Date().toISOString().slice(0, 10)}
               {...register("fecha", { required: "La fecha es requerida" })}
               className={inputClass}
             />
@@ -116,7 +118,16 @@ export function ReservationModal({
                 type="time"
                 min="07:00"
                 max="19:30"
-                {...register("horaInicio", { required: "Requerido" })}
+                {...register("horaInicio", {
+                  required: "Requerido",
+                  validate: (v) => {
+                    const now = new Date();
+                    const today = now.toISOString().slice(0, 10);
+                    const ct = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+                    if (getValues("fecha") === today && v < ct) return "La hora ya paso";
+                    return true;
+                  },
+                })}
                 className={inputClass}
               />
               {errors.horaInicio && <p className={errorClass}>{errors.horaInicio.message}</p>}

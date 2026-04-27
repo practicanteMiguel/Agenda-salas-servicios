@@ -14,18 +14,24 @@ interface Props {
   reserva: Reserva;
   top: number;
   height: number;
+  canDrag: boolean;
+  canResize: boolean;
   onDetails: (reserva: Reserva) => void;
   onDragStarted: (offsetY: number, durationMinutes: number) => void;
   onDragEnded: () => void;
+  onResizeStarted: (reservaId: string, originalEndMins: number, startClientY: number) => void;
 }
 
 export function ReservationBlock({
   reserva,
   top,
   height,
+  canDrag,
+  canResize,
   onDetails,
   onDragStarted,
   onDragEnded,
+  onResizeStarted,
 }: Props) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -34,6 +40,7 @@ export function ReservationBlock({
   const compact = height < 52;
 
   const handleDragStart = (e: React.DragEvent) => {
+    if (!canDrag) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const offsetY = e.clientY - rect.top;
     const [sh, sm] = reserva.horaInicio.split(":").map(Number);
@@ -53,15 +60,20 @@ export function ReservationBlock({
     onDragEnded();
   };
 
+  const startResize = (clientY: number) => {
+    const [eh, em] = reserva.horaFin.split(":").map(Number);
+    onResizeStarted(reserva.id, eh * 60 + em, clientY);
+  };
+
   return (
     <div
-      draggable={isReservado}
+      draggable={canDrag}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       className={clsx(
         "absolute left-1 right-1 rounded-lg border-l-4 shadow-md z-10 overflow-hidden transition-opacity",
         isReservado
-          ? clsx(color, "text-white cursor-grab active:cursor-grabbing")
+          ? clsx(color, canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer")
           : "bg-gray-200 border-gray-400 text-gray-600 cursor-pointer",
         isDragging ? "opacity-40" : "opacity-100"
       )}
@@ -113,6 +125,26 @@ export function ReservationBlock({
           </>
         )}
       </div>
+
+      {/* Resize handle — for future and currently-active reservations */}
+      {canResize && (
+        <div
+          draggable={false}
+          className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            startResize(e.clientY);
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            startResize(e.touches[0].clientY);
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-6 h-0.5 rounded-full bg-white/60" />
+        </div>
+      )}
     </div>
   );
 }

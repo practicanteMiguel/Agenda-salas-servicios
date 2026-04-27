@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import clsx from "clsx";
@@ -86,6 +86,84 @@ export function CalendarView({
   const [detailReserva, setDetailReserva] = useState<Reserva | null>(null);
   const [dragMeta, setDragMeta] = useState<{ offsetY: number; durationMinutes: number } | null>(null);
   const [dragPreviewY, setDragPreviewY] = useState<number | null>(null);
+  const [resizeMeta, setResizeMeta] = useState<{
+    reservaId: string;
+    sala: string;
+    fecha: string;
+    horaInicio: string;
+    originalEndMins: number;
+    startClientY: number;
+  } | null>(null);
+  const [resizeCurrentEndMins, setResizeCurrentEndMins] = useState<number | null>(null);
+  const onMoverReservaRef = useRef(onMoverReserva);
+  onMoverReservaRef.current = onMoverReserva;
+
+  useEffect(() => {
+    if (!resizeMeta) return;
+    let liveEndMins = resizeMeta.originalEndMins;
+    const [sh, sm] = resizeMeta.horaInicio.split(":").map(Number);
+    const startMins = sh * 60 + sm;
+
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      const clientY = "touches" in e ? (e as TouchEvent).touches[0].clientY : (e as MouseEvent).clientY;
+      const deltaY = clientY - resizeMeta.startClientY;
+      const deltaMinutes = Math.round(((deltaY / HOUR_HEIGHT) * 60) / 15) * 15;
+      liveEndMins = Math.min(GRID_END * 60, Math.max(startMins + 15, resizeMeta.originalEndMins + deltaMinutes));
+      setResizeCurrentEndMins(liveEndMins);
+    };
+
+    const onUp = () => {
+      if (liveEndMins !== resizeMeta.originalEndMins) {
+        onMoverReservaRef.current(
+          resizeMeta.reservaId,
+          resizeMeta.sala,
+          resizeMeta.fecha,
+          resizeMeta.horaInicio,
+          minsToTime(liveEndMins)
+        );
+      }
+      setResizeMeta(null);
+      setResizeCurrentEndMins(null);
+      // Swallow the click that immediately follows mouseup/touchend
+      const swallowClick = (e: Event) => {
+        e.stopPropagation();
+        window.removeEventListener("click", swallowClick, true);
+      };
+      window.addEventListener("click", swallowClick, true);
+      setTimeout(() => window.removeEventListener("click", swallowClick, true), 300);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove);
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [resizeMeta]);
+
+  const nowForDrag = new Date();
+  const todayStrForDrag = nowForDrag.toISOString().slice(0, 10);
+  const currentTimeStrForDrag = `${nowForDrag.getHours().toString().padStart(2, "0")}:${nowForDrag.getMinutes().toString().padStart(2, "0")}`;
+
+  const canDragReserva = (r: Reserva): boolean => {
+    if (r.estado !== "reservado") return false;
+    if (r.fecha < todayStrForDrag) return false;
+    if (r.fecha === todayStrForDrag && r.horaFin <= currentTimeStrForDrag) return false;
+    if (r.fecha === todayStrForDrag && r.horaInicio <= currentTimeStrForDrag) return false;
+    return true;
+  };
+
+  // Active reservations can be resized (but not dragged)
+  const canResizeReserva = (r: Reserva): boolean => {
+    if (r.estado !== "reservado") return false;
+    if (r.fecha < todayStrForDrag) return false;
+    if (r.fecha === todayStrForDrag && r.horaFin <= currentTimeStrForDrag) return false;
+    return true;
+  };
 
   const selectDay = (day: Date) => {
     setSelectedDay(day);
@@ -393,19 +471,37 @@ export function CalendarView({
 
                   {/* Reservation blocks */}
                   {salaReservas.map((reserva) => {
+                    const canDrag = canDragReserva(reserva);
+                    const canResize = canResizeReserva(reserva);
+                    const displayHoraFin =
+                      resizeMeta?.reservaId === reserva.id && resizeCurrentEndMins !== null
+                        ? minsToTime(resizeCurrentEndMins)
+                        : reserva.horaFin;
                     const top = timeToY(reserva.horaInicio);
-                    const height = timeToY(reserva.horaFin) - top;
+                    const height = timeToY(displayHoraFin) - top;
                     return (
                       <ReservationBlock
                         key={reserva.id}
                         reserva={reserva}
                         top={top}
                         height={Math.max(height, 28)}
+                        canDrag={canDrag}
+                        canResize={canResize}
                         onDetails={setDetailReserva}
                         onDragStarted={(offsetY, durationMinutes) =>
                           setDragMeta({ offsetY, durationMinutes })
                         }
                         onDragEnded={clearDragState}
+                        onResizeStarted={(reservaId, originalEndMins, startClientY) =>
+                          setResizeMeta({
+                            reservaId,
+                            sala,
+                            fecha: selectedDateStr,
+                            horaInicio: reserva.horaInicio,
+                            originalEndMins,
+                            startClientY,
+                          })
+                        }
                       />
                     );
                   })}
