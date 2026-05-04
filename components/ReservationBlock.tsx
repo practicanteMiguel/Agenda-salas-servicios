@@ -39,6 +39,14 @@ export function ReservationBlock({
   const color = BLOCK_COLORS[reserva.sala] ?? "bg-gray-500 border-gray-700 hover:bg-gray-600";
   const compact = height < 52;
 
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const currentTimeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+  const isPast =
+    isReservado &&
+    (reserva.fecha < todayStr ||
+      (reserva.fecha === todayStr && reserva.horaFin <= currentTimeStr));
+
   const handleDragStart = (e: React.DragEvent) => {
     if (!canDrag) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -71,13 +79,16 @@ export function ReservationBlock({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       className={clsx(
-        "absolute left-1 right-1 rounded-lg border-l-4 shadow-md z-10 overflow-hidden transition-opacity",
+        "absolute left-1 right-1 rounded-lg border-l-4 z-10 overflow-hidden transition-opacity",
         isReservado
-          ? clsx(color, canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer")
-          : "bg-gray-200 border-gray-400 text-gray-600 cursor-pointer",
-        isDragging ? "opacity-40" : "opacity-100"
+          ? clsx(color, canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer", isPast ? "shadow-none" : "shadow-md")
+          : "bg-gray-200 border-gray-400 text-gray-600 cursor-pointer shadow-md"
       )}
-      style={{ top: top + 1, height: Math.max(height - 2, 24) }}
+      style={{
+        top: top + 1,
+        height: Math.max(height - 2, 24),
+        opacity: isDragging ? 0.4 : isPast ? 0.45 : 1,
+      }}
       onClick={(e) => {
         e.stopPropagation();
         onDetails(reserva);
@@ -91,7 +102,7 @@ export function ReservationBlock({
               !isReservado && "line-through opacity-60"
             )}
           >
-            {reserva.solicitante} · {reserva.horaInicio}–{reserva.horaFin}
+            {reserva.solicitante} · {reserva.horaInicio}–{reserva.horaFin}{isPast && " · fin"}
           </span>
         ) : (
           <>
@@ -121,6 +132,7 @@ export function ReservationBlock({
             >
               {reserva.horaInicio} – {reserva.horaFin}
               {!isReservado && " · liberada"}
+              {isPast && " · finalizada"}
             </p>
           </>
         )}

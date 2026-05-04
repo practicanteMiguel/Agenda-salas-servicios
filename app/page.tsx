@@ -189,19 +189,18 @@ export default function Page() {
             const reservaActual = isViewingToday ? getReservaActual(sala) : null;
             const ocupada = reservaActual !== null;
             const totalDia = reservas.filter(
-              (r) => r.sala === sala && r.fecha === selectedDateStr && r.estado === "reservado"
+              (r) => r.sala === sala && r.fecha === selectedDateStr
             ).length;
-            const proxima = !ocupada
-              ? reservas
-                  .filter(
-                    (r) =>
-                      r.sala === sala &&
-                      r.fecha === selectedDateStr &&
-                      r.estado === "reservado" &&
-                      r.horaInicio > (isViewingToday ? currentTime : "")
-                  )
-                  .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))[0] ?? null
-              : null;
+            const proxima =
+              reservas
+                .filter(
+                  (r) =>
+                    r.sala === sala &&
+                    r.fecha === selectedDateStr &&
+                    r.estado === "reservado" &&
+                    r.horaInicio > (isViewingToday ? currentTime : "")
+                )
+                .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))[0] ?? null;
 
             return (
               <div
@@ -229,6 +228,16 @@ export default function Page() {
                     <p className="text-xs text-gray-400 truncate">
                       {reservaActual!.area} · hasta {reservaActual!.horaFin}
                     </p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xl font-bold text-gray-900">{totalDia}</p>
+                      {proxima ? (
+                        <p className="text-xs text-gray-400 text-right">
+                          sig: {proxima.horaInicio}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400">sin mas reservas</p>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <>

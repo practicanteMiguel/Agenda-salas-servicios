@@ -55,7 +55,7 @@ function minsToTime(mins: number): string {
 
 interface Props {
   reservas: Reserva[];
-  onNewReserva: (sala: string, fecha: string) => void;
+  onNewReserva: (sala: string, fecha: string, horaInicio?: string, horaFin?: string) => void;
   onLiberar: (id: string) => void;
   onReactivar: (id: string) => void;
   onEliminar: (id: string) => void;
@@ -95,6 +95,7 @@ export function CalendarView({
     startClientY: number;
   } | null>(null);
   const [resizeCurrentEndMins, setResizeCurrentEndMins] = useState<number | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const onMoverReservaRef = useRef(onMoverReserva);
   onMoverReservaRef.current = onMoverReserva;
 
@@ -145,23 +146,27 @@ export function CalendarView({
     };
   }, [resizeMeta]);
 
-  const nowForDrag = new Date();
-  const todayStrForDrag = nowForDrag.toISOString().slice(0, 10);
-  const currentTimeStrForDrag = `${nowForDrag.getHours().toString().padStart(2, "0")}:${nowForDrag.getMinutes().toString().padStart(2, "0")}`;
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const todayStr = now.toISOString().slice(0, 10);
+  const currentTimeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
 
   const canDragReserva = (r: Reserva): boolean => {
     if (r.estado !== "reservado") return false;
-    if (r.fecha < todayStrForDrag) return false;
-    if (r.fecha === todayStrForDrag && r.horaFin <= currentTimeStrForDrag) return false;
-    if (r.fecha === todayStrForDrag && r.horaInicio <= currentTimeStrForDrag) return false;
+    if (r.fecha < todayStr) return false;
+    if (r.fecha === todayStr && r.horaFin <= currentTimeStr) return false;
+    if (r.fecha === todayStr && r.horaInicio <= currentTimeStr) return false;
     return true;
   };
 
   // Active reservations can be resized (but not dragged)
   const canResizeReserva = (r: Reserva): boolean => {
     if (r.estado !== "reservado") return false;
-    if (r.fecha < todayStrForDrag) return false;
-    if (r.fecha === todayStrForDrag && r.horaFin <= currentTimeStrForDrag) return false;
+    if (r.fecha < todayStr) return false;
+    if (r.fecha === todayStr && r.horaFin <= currentTimeStr) return false;
     return true;
   };
 
@@ -177,6 +182,12 @@ export function CalendarView({
 
   const selectedDateStr = format(selectedDay, "yyyy-MM-dd");
   const totalGridHeight = HOURS.length * HOUR_HEIGHT;
+
+  const isViewingToday = selectedDateStr === todayStr;
+  const nowLineY =
+    isViewingToday && now.getHours() >= GRID_START && now.getHours() < GRID_END
+      ? 32 + timeToY(currentTimeStr)
+      : null;
 
   const reservasByRoom = useMemo(() => {
     const map: Record<string, Reserva[]> = {};
@@ -362,10 +373,8 @@ export function CalendarView({
         </div>
 
         {/* Room columns */}
-        <div
-          className="grid grid-cols-3 gap-2 flex-1"
-          style={{ minWidth: "330px" }}
-        >
+        <div className="relative flex-1" style={{ minWidth: "330px" }}>
+        <div className="grid grid-cols-3 gap-2">
           {SALAS.map((sala) => {
             const styles = SALA_STYLES[sala];
             const salaReservas = reservasByRoom[sala];
@@ -404,33 +413,44 @@ export function CalendarView({
                     "cursor-pointer"
                   )}
                   style={{ height: totalGridHeight }}
-                  onClick={() => onNewReserva(sala, selectedDateStr)}
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const y = e.clientY - rect.top;
+                    const minutesFromStart = Math.round(((y / HOUR_HEIGHT) * 60) / 15) * 15;
+                    const startMins = Math.min(GRID_START * 60 + minutesFromStart, 19 * 60 + 45);
+                    const endMins = Math.min(startMins + 60, GRID_END * 60);
+                    onNewReserva(sala, selectedDateStr, minsToTime(startMins), minsToTime(endMins));
+                  }}
                   onDragOver={(e) => handleDragOver(e, sala)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, sala)}
                 >
-                  {/* Hour lines — darker while dragging */}
+                  {/* Hour lines */}
                   {HOURS.map((_, i) => (
                     <div
                       key={i}
                       className={clsx(
                         "absolute left-0 right-0 border-t transition-colors",
-                        isDraggingAny ? "border-gray-300" : "border-gray-100"
+                        isDraggingAny ? "border-gray-400" : "border-gray-200"
                       )}
                       style={{ top: i * HOUR_HEIGHT }}
                     />
                   ))}
-                  {/* Half-hour dashes */}
-                  {HOURS.map((_, i) => (
-                    <div
-                      key={`hh-${i}`}
-                      className={clsx(
-                        "absolute left-3 right-3 border-t border-dashed transition-colors",
-                        isDraggingAny ? "border-gray-200" : "border-gray-100"
-                      )}
-                      style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
-                    />
-                  ))}
+                  {/* 15-min lines (quarter and three-quarter) */}
+                  {HOURS.map((_, i) =>
+                    [1, 2, 3].map((q) => (
+                      <div
+                        key={`q-${i}-${q}`}
+                        className={clsx(
+                          "absolute left-4 right-4 border-t transition-colors",
+                          q === 2
+                            ? isDraggingAny ? "border-gray-300 border-dashed" : "border-gray-200 border-dashed"
+                            : isDraggingAny ? "border-gray-200 border-dashed" : "border-gray-100 border-dashed"
+                        )}
+                        style={{ top: i * HOUR_HEIGHT + (q * HOUR_HEIGHT) / 4 }}
+                      />
+                    ))
+                  )}
 
                   {/* Drag preview: dashed outline + floating time badge above */}
                   {isDragTarget && dragPreview && (
@@ -509,6 +529,20 @@ export function CalendarView({
               </div>
             );
           })}
+        </div>
+
+        {/* Current time line */}
+        {nowLineY !== null && (
+          <div
+            className="absolute left-0 right-0 z-20 pointer-events-none -translate-y-1/2"
+            style={{ top: nowLineY }}
+          >
+            <div className="flex items-center">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0 shadow-sm" />
+              <div className="flex-1 h-px bg-red-400" />
+            </div>
+          </div>
+        )}
         </div>
       </div>
 
